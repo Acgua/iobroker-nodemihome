@@ -969,7 +969,7 @@ async function RefreshGenericDpsTicker() {
     try {
         dummy = await mihome.miCloudProtocol.getDevices(null, options); // Gibt  Devices zurück und weist die Werte einem lokalen Array zu
     } catch (error) {
-        if (error.type = "request-timeout") {
+        if (error.type === "request-timeout") {
             log("Refreshing devices error: " + error.message, logLevelNetworkTimeout);
         } else {
             log(error.stack, "error");
