@@ -1,4 +1,4 @@
-const SkriptVersion = "0.2.29"; //vom 9.1.2022 / Link zu Git: https://github.com/Pittini/iobroker-nodemihome / Forum: https://forum.iobroker.net/topic/39388/vorlage-xiaomi-airpurifier-3h-u-a-inkl-token-auslesen
+const SkriptVersion = "0.2.30"; //vom 12.07.2022 / Link zu Git: https://github.com/Pittini/iobroker-nodemihome / Forum: https://forum.iobroker.net/topic/39388/vorlage-xiaomi-airpurifier-3h-u-a-inkl-token-auslesen
 
 const mihome = require('node-mihome');
 
@@ -12,6 +12,8 @@ const SkipRssiRefresh = true; //Bei true wird rssi und isOnline nicht mehr aktua
 const praefix0 = "javascript.0.MiHomeAll"; //Root für Skriptdatenpunkte
 
 const logging = false; //Logging aktivieren/deaktivieren
+
+const logLevelNetworkTimeout = 'warn'; // Falls beim Refresh (z.B. alle 10sek lt. 'refresh' oben) der mihome-Server nicht erreichbar ist, wird eine Meldung im Log ausgegeben. Hier stellst du die Log-Stufe hierfür ein ('error', 'warn', 'info', 'debug', 'silly').
 
 //Ab hier nix mehr ändern!
 /*
@@ -963,8 +965,17 @@ async function CreateDevices() {
 
 async function RefreshGenericDpsTicker() {
     // log("Reaching RefreshGenericDpsTicker()" , "info");
-
-    let dummy = await mihome.miCloudProtocol.getDevices(null, options); //Gibt  Devices zurück und weist die Werte einem lokalen Array zu
+    let dummy;
+    try {
+        dummy = await mihome.miCloudProtocol.getDevices(null, options); // Gibt  Devices zurück und weist die Werte einem lokalen Array zu
+    } catch (error) {
+        if (error.type = "request-timeout") {
+            log("Refreshing devices error: " + error.message, logLevelNetworkTimeout);
+        } else {
+            log(error.stack, "error");
+        }
+        return false;
+    }
     if (typeof dummy != "object") return false;
     for (let DeviceIndex in device) {
         for (let DummyDeviceIndex in dummy) {
@@ -1055,11 +1066,12 @@ async function SetDevice(i, key, keyvalue) {
             };
         };
     };
-    log("Keyvalue=" + keyvalue + " key=" + key)
     if (logging) log("Reaching SetDevice i=" + i);
+    log(`Setting Device ${device[i].definition.description}: ${device[i].definition.common[key].name} = ${keyvalue}`)
     // log("Setting Device " + device[i].model + " to value " + keyvalue + " at " + device[i].definition.common[key].name)
     // log("Setting Device " + device[i].model + " to value " + keyvalue + " at " + device[i].setter[device[i].definition.common[key].name])
-    log(device[i].setter[device[i].definition.common[key].name](i, keyvalue)); //Diese Zeile nicht entfernen, Funktionsaufruf!!!
+    // log(device[i].setter[device[i].definition.common[key].name](i, keyvalue)); //Diese Zeile nicht entfernen, Funktionsaufruf!!!
+    device[i].setter[device[i].definition.common[key].name](i, keyvalue); // Warum Funktion nicht direkt aufrufen? Gibt sonst bei mir nur ein {} aus (bei mir im Log).
 }
 
 function CreateDpTrigger() {
@@ -1185,5 +1197,4 @@ function rgbToHsl(hex) {
 
     return [Math.round(h * 360), Math.round(s * 100)];
 }
-
 
